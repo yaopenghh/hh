@@ -15,17 +15,15 @@ import os
 from collections import defaultdict
 warnings.filterwarnings('ignore')
 
-# 设置随机种子以确保可重复性
 np.random.seed(42)
-tf.random.set_seed(42)
+tf.random.set_seed(42)# 设置随机种子以确保可重复性
 
 class BindingSiteInhibitorDataset:
     
-    def __init__(self, interaction_threshold=0.3):
-        # 设置相互作用阈值 (30%)
+    def __init__(self, interaction_threshold=0.3):#设置相互作用阈值 (30%)
+        
         self.interaction_threshold = interaction_threshold
         
-        # 氨基酸物理化学性质数据库
         self.aa_properties = {
             'ALA': {'hydropathy': 1.8, 'pKa': 6.02, 'volume': 67, 'polarity': 0, 'charge': 0, 'hydrophobicity': 1.8},
             'ARG': {'hydropathy': -4.5, 'pKa': 10.76, 'volume': 148, 'polarity': 1, 'charge': 1, 'hydrophobicity': 4.5},
@@ -47,21 +45,17 @@ class BindingSiteInhibitorDataset:
             'TRP': {'hydropathy': -0.9, 'pKa': 5.89, 'volume': 163, 'polarity': 0, 'charge': 0, 'hydrophobicity': 0.9},
             'TYR': {'hydropathy': -1.3, 'pKa': 5.66, 'volume': 141, 'polarity': 1, 'charge': 0, 'hydrophobicity': 1.3},
             'VAL': {'hydropathy': 4.2, 'pKa': 5.97, 'volume': 105, 'polarity': 0, 'charge': 0, 'hydrophobicity': 1.3}
-        }
+        }      # 氨基酸物理化学性质数据库
         
-        # 初始化Mordred计算器
-        self.calc = Calculator(descriptors, ignore_3D=True)
+        self.calc = Calculator(descriptors, ignore_3D=True)# 初始化Mordred计算器，只计算2D分子描述符
         
-        # 氨基酸编码器
         from sklearn.preprocessing import LabelEncoder
         self.aa_encoder = LabelEncoder()
-        self.aa_encoder.fit(list(self.aa_properties.keys()))
+        self.aa_encoder.fit(list(self.aa_properties.keys()))  # 氨基酸编码器
         
-        # 存储氨基酸列表
         self.amino_acid_columns = None
-        self.all_amino_acids = None
+        self.all_amino_acids = None   # 存储氨基酸列表
         
-        # 氨基酸名称映射
         self.aa_name_mapping = {
             'ala': 'ALA', 'arg': 'ARG', 'asn': 'ASN', 'asp': 'ASP', 'cys': 'CYS',
             'gln': 'GLN', 'glu': 'GLU', 'gly': 'GLY', 'his': 'HIS', 'ile': 'ILE',
@@ -71,7 +65,7 @@ class BindingSiteInhibitorDataset:
             'Gln': 'GLN', 'Glu': 'GLU', 'Gly': 'GLY', 'His': 'HIS', 'Ile': 'ILE',
             'Leu': 'LEU', 'Lys': 'LYS', 'Met': 'MET', 'Phe': 'PHE', 'Pro': 'PRO',
             'Ser': 'SER', 'Thr': 'THR', 'Trp': 'TRP', 'Tyr': 'TYR', 'Val': 'VAL'
-        }
+        }        # 氨基酸名称映射
     
     def load_excel_data(self, file_path='Ligand.xlsx'):
         try:
@@ -81,12 +75,12 @@ class BindingSiteInhibitorDataset:
             df = pd.read_excel(file_path)
             print(f"从 {file_path} 成功加载数据，形状: {df.shape}")
             
-            # 第一列是SMILES，最后一列是IC50，中间是氨基酸
+
             smiles_col = df.columns[0]
             ic50_col = df.columns[-1]
             aa_columns = df.columns[1:-1]
             self.amino_acid_columns = list(aa_columns)
-            self.all_amino_acids = self.amino_acid_columns.copy()
+            self.all_amino_acids = self.amino_acid_columns.copy()  # 第一列是SMILES，最后一列是IC50，中间是氨基酸
             
             print(f"SMILES列: {smiles_col}")
             print(f"氨基酸相互作用列 ({len(aa_columns)}个): {list(aa_columns)}")
@@ -102,37 +96,32 @@ class BindingSiteInhibitorDataset:
                 if pd.isna(smiles) or smiles == '' or smiles == 'nan':
                     continue
                 if pd.isna(ic50):
-                    continue
+                    continue #数据遍历和数据清洗
                 
-                # 转换IC50为二进制活性标签
-                # 根据实际IC50值判断活性，通常IC50值越小活性越好
-                # 这里需要根据实际数据调整阈值
-                if ic50 > 0:  # IC50 < 10μM 视为有活性
+                if ic50 > 0: 
                     activity_binary = 1
-                else:  # IC50 >= 10μM 视为无活性
-                    activity_binary = 0
+                else:  
+                    activity_binary = 0 # 转换IC50为二进制活性标签
                 
-                # 收集相互作用信息 - 使用30%阈值
                 aa_interactions = []
                 interaction_vector = []
                 for aa_col in aa_columns:
                     aa_name = str(aa_col).strip()
                     interaction = row[aa_col]
                     
-                    # 使用30%阈值判断相互作用
                     if not pd.isna(interaction) and interaction > self.interaction_threshold:
                         aa_interactions.append(aa_name)
                         interaction_vector.append(1)
                     else:
-                        interaction_vector.append(0)
+                        interaction_vector.append(0)    # 使用30%阈值判断相互作用
                 
                 data.append({
-                    'smiles': smiles,
-                    'amino_acids': aa_interactions,
-                    'interaction_vector': interaction_vector,
-                    'activity': activity_binary,
-                    'original_ic50': ic50,
-                    'raw_interaction_values': [row[aa_col] for aa_col in aa_columns]
+                    'smiles': smiles, # 分子SMILES
+                    'amino_acids': aa_interactions, # 相互作用的氨基酸列表
+                    'interaction_vector': interaction_vector, # 相互作用二进制向量
+                    'activity': activity_binary, # 二进制活性标签
+                    'original_ic50': ic50,  # 原始IC50值
+                    'raw_interaction_values': [row[aa_col] for aa_col in aa_columns] # 所有原始相互作用值
                 })
             
             print(f"从Excel文件成功加载 {len(data)} 个样本")
@@ -146,23 +135,20 @@ class BindingSiteInhibitorDataset:
     
     def extract_aa_features(self, aa_list):
         if not self.all_amino_acids:
-            return np.zeros(50)  # 默认维度
+            return np.zeros(50)  # 如果未定义返回50维的零向量
         
-        # 创建相互作用向量
         interaction_vector = np.zeros(len(self.all_amino_acids))
         for i, aa in enumerate(self.all_amino_acids):
             if aa in aa_list:
-                interaction_vector[i] = 1
+                interaction_vector[i] = 1        # 创建与总数相同的零向量，如果氨基酸在输入列表中，对应位置设置为1
         
-        # 添加相互作用的统计特征
-        num_interactions = len(aa_list)
-        interaction_density = num_interactions / len(self.all_amino_acids) if self.all_amino_acids else 0
+        num_interactions = len(aa_list) #相互作用的氨基酸总数
+        interaction_density = num_interactions / len(self.all_amino_acids) if self.all_amino_acids else 0 #相互作用密度（相互作用数/总氨基酸数）
         
-        # 组合特征
         features = np.concatenate([
             interaction_vector,
             [num_interactions, interaction_density]
-        ])
+        ])  #组合特征
         
         return features
     
@@ -175,8 +161,7 @@ class BindingSiteInhibitorDataset:
                 descriptors_values = descriptors_df[numeric_cols].values[0]
                 descriptors_values = np.nan_to_num(descriptors_values)
                 
-                # 限制特征维度，避免过大
-                max_descriptors = 500
+                max_descriptors = 500              # 限制特征维度，避免过大
                 if len(descriptors_values) > max_descriptors:
                     descriptors_values = descriptors_values[:max_descriptors]
                 elif len(descriptors_values) < max_descriptors:
@@ -188,15 +173,14 @@ class BindingSiteInhibitorDataset:
                 return np.zeros(500)
         except Exception as e:
             print(f"计算抑制剂 {smiles} 特征时出错: {e}")
-            return np.zeros(500)
+            return np.zeros(500) #若SMILES无法解析返回500维的零向量
     
-    def build_dataset(self, data=None, use_excel=True, test_size=0.2):
+    def build_dataset(self, data=None, use_excel=True, test_size=0.2):#测试集比例20%
 
         if data is None:
             if use_excel:
                 data = self.load_excel_data()
             else:
-                # 如果没有Excel数据且不使用Excel，则返回空
                 print("错误: 没有提供数据且未使用Excel数据")
                 return None
         
@@ -204,44 +188,39 @@ class BindingSiteInhibitorDataset:
             print("错误: 没有数据可用")
             return None
         
-        # 分割数据集
         smiles_list = list(set([d['smiles'] for d in data]))
         train_smiles, test_smiles = train_test_split(smiles_list, test_size=test_size, random_state=42)
         
         train_data = [d for d in data if d['smiles'] in train_smiles]
-        test_data = [d for d in data if d['smiles'] in test_smiles]
+        test_data = [d for d in data if d['smiles'] in test_smiles]        # 分割数据集
         
         print(f"训练集: {len(train_data)} 个样本")
         print(f"测试集: {len(test_data)} 个样本")
         
-        # 构建特征
         x_train, y_interaction_train, y_activity_train = self._build_features(train_data)
         x_test, y_interaction_test, y_activity_test = self._build_features(test_data)
         
         return (x_train, x_test, y_interaction_train, y_interaction_test, 
-                y_activity_train, y_activity_test, train_data, test_data)
+                y_activity_train, y_activity_test, train_data, test_data)        # 构建特征x_train训练集特征，x_test测试集，y_intx_train训练集相互作用标签，y_intx_test测试集，y_actx_train训练集活性标签，y_actx_test测试集，train_data训练集原始数据，test_data测试集原始数据
     
     def _build_features(self, data):
  
-        x_data = []
-        y_interaction = []
-        y_activity = []
+        x_data = [] #组合特征向量
+        y_interaction = [] #相互作用标签
+        y_activity = [] #活性标签
         
         for sample in data:
             try:
-                # 抑制剂特征
-                inhibitor_features = self.get_inhibitor_features(sample['smiles'])
                 
-                # 氨基酸相互作用特征
-                aa_features = self.extract_aa_features(sample['amino_acids'])
+                inhibitor_features = self.get_inhibitor_features(sample['smiles']) # 抑制剂特征
                 
-                # 合并特征
-                combined_features = np.concatenate([inhibitor_features, aa_features])
+                aa_features = self.extract_aa_features(sample['amino_acids']) # 氨基酸相互作用特征
+                
+                combined_features = np.concatenate([inhibitor_features, aa_features])# 合并特征
                 x_data.append(combined_features)
                 
-                # 标签 - 使用30%阈值处理后的相互作用向量
                 y_interaction.append(sample['interaction_vector'])
-                y_activity.append(sample['activity'])
+                y_activity.append(sample['activity'])# 标签 - 使用30%阈值处理后的相互作用向量
                 
             except Exception as e:
                 print(f"处理样本时出错: {e}")
@@ -253,31 +232,29 @@ class InteractionBasedActivityModel:
 
     
     def __init__(self, input_dim, num_amino_acids, interaction_threshold=0.3):
-        self.input_dim = input_dim
-        self.num_amino_acids = num_amino_acids
-        self.interaction_threshold = interaction_threshold
-        self.model = None
-        self.scaler = StandardScaler()
-        self.history = None
+        self.input_dim = input_dim #输入特征维度
+        self.num_amino_acids = num_amino_acids #氨基酸数量
+        self.interaction_threshold = interaction_threshold #相互作用阈值
+        self.model = None #储存构建的模型
+        self.scaler = StandardScaler() #特征标准化
+        self.history = None #储存训练历史
     
     def build_model(self):
-        """构建序列模型：先预测相互作用，再基于相互作用预测活性"""
-        # 输入层
-        inputs = tf.keras.layers.Input(shape=(self.input_dim,))
+
+        inputs = tf.keras.layers.Input(shape=(self.input_dim,)) #定义模型的输入形状，与特征维度匹配
         
         # 共享特征提取层
         x = tf.keras.layers.Dense(512, activation='relu')(inputs)
         x = tf.keras.layers.Dropout(0.3)(x)
         x = tf.keras.layers.Dense(256, activation='relu')(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
-        x = tf.keras.layers.Dense(128, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.3)(x) #防止过拟合，提高泛化能力
+        x = tf.keras.layers.Dense(128, activation='relu')(x) #逐渐减少神经元数量，提取高层次特征
         
-        # 任务1：预测与每个氨基酸的相互作用概率（多标签分类）
         interaction_output = tf.keras.layers.Dense(
-            self.num_amino_acids, 
-            activation='sigmoid', 
+            self.num_amino_acids, #每个氨基酸一个输出
+            activation='sigmoid', #独立概率
             name='interaction'
-        )(x)
+        )(x)    # 预测与每个氨基酸的相互作用概率（多标签分类）
         
         # 将相互作用预测结果作为活性预测的输入
         # 连接原始特征和相互作用预测
@@ -287,7 +264,7 @@ class InteractionBasedActivityModel:
         activity_branch = tf.keras.layers.Dense(64, activation='relu')(combined)
         activity_branch = tf.keras.layers.Dropout(0.2)(activity_branch)
         activity_branch = tf.keras.layers.Dense(32, activation='relu')(activity_branch)
-        activity_output = tf.keras.layers.Dense(1, activation='sigmoid', name='activity')(activity_branch)
+        activity_output = tf.keras.layers.Dense(1, activation='sigmoid', name='activity')(activity_branch)#二分类输出（有活性/无活性）
         
         # 创建模型
         self.model = tf.keras.models.Model(
@@ -299,10 +276,10 @@ class InteractionBasedActivityModel:
         self.model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
             loss={
-                'interaction': 'binary_crossentropy',
-                'activity': 'binary_crossentropy'
+                'interaction': 'binary_crossentropy',#多标签分类
+                'activity': 'binary_crossentropy'#二分类
             },
-            loss_weights={'interaction': 0.4, 'activity': 0.6},
+            loss_weights={'interaction': 0.4, 'activity': 0.6},#辅助任务权重较低，主任务权重较高
             metrics={
                 'interaction': ['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()],
                 'activity': ['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
